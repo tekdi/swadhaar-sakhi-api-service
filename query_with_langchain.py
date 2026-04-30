@@ -1,5 +1,6 @@
 import os
 import ast
+import json
 import random
 from typing import Any, List, Tuple
 
@@ -179,47 +180,31 @@ def get_chat_intent_prompt():
     return {'role': "system", 'content': intent_prompt }
 
 def get_intent_query(messages=[]):
-    """    
-    Force function calling with openai.ChatCompletion.create()
+    """Reformulates the conversation into a focused search query.
 
     Args:
-        - func (dict): function schema
-        - messages (list): list of messages to complete the chat with
-        - model (str): model to use for completion
+        messages (list): list of messages representing the conversation history
+    Returns:
+        str: clean reformulated search query
     """
-    function_info = {
-        "name": "get_search_intent",
-        "description": "This function takes the user's previous interactions and synthesizes it into a focused English search query that can be used to find the most relevant documents.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "description": "A precise English search query (typically 5-10 words long) generated from the user's previous interactions with the chatbot and/or the available documents.",
-                    "type": "string"
-                }
-            },
-            "required": ["query"]
-        }
+    json_format_message = {
+        "role": "user",
+        "content": 'Respond only with a JSON object in this exact format: {"thoughts": "<brief reasoning>", "query": "<reformulated search query>"}'
     }
-    # gpt_model = get_from_env_or_config("llm", "GPT_MODEL", "gpt-4")
-    # response = client.chat.completions.create(
-    #     model=gpt_model,
-    #     messages=messages,
-    #     # functions=[function_info],
-    #     # function_call= {"name": function_info.get("name")},
-    #     stream=False,
-    #     temperature=0.1,
-    # )
     clientIntent = llm_class.get_client(temperature=0.1)
-    converted_messsages = convert_chat_messages(messages)
+    converted_messsages = convert_chat_messages(messages + [json_format_message])
     response = clientIntent.invoke(input=converted_messsages)
 
-    # message = response.choices[0].message
-    # function_call = message.function_call
-    # arguments = json.loads(function_call.arguments)
-    # print("response ====>", arguments)
-    # return arguments
-    return response.content
+    try:
+        content = response.content.strip()
+        if content.startswith("```"):
+            content = "\n".join(content.split("\n")[1:-1])
+        result = json.loads(content)
+        logger.debug(f"Intent query thoughts: {result.get('thoughts', '')}")
+        return result["query"]
+    except (json.JSONDecodeError, KeyError):
+        logger.warning(f"Failed to parse intent query JSON, using raw response: {response.content}")
+        return response.content
 
 
 
@@ -331,6 +316,9 @@ def check_bot_intent(query: str, context: str):
         return None, None
 
     intent_prompt = get_from_env_or_config("llm", "intent_prompt")
+    if context == "swadhaar_agent_dev":
+        intent_prompt = get_from_env_or_config("llm", "intent_prompt_dev")
+
     intent_response = call_chat_model(
         messages=[{"role": "system", "content": intent_prompt}, {"role": "user", "content": query}]
     )

@@ -163,3 +163,8 @@ if __name__ == "__main__":
 
 # python3 indexer_swadhaar.py --marqo_url=http://0.0.0.0:8882 --index_name=swadhaar --folder_path=/home/ttpl-rt-228/Downloads/Swadhaar_AI_Training_Data.xlsx
 # python3 indexer_swadhaar.py --marqo_url=http://0.0.0.0:8882 --index_name=swadhaar --folder_path=/home/ttpl-rt-228/Documents/Swadhaar_AI_Training_Data.xlsx --fresh_index (FOR FRESH INDEXING)
+
+
+#dev
+# python3 indexer_swadhaar.py --marqo_url=http://0.0.0.0:8882 --index_name=swadhaar_dev --folder_path=/home/ttpl-rt-228/Downloads/Swadhaar_AI_Training_Data.xlsx
+# python3 indexer_swadhaar.py --marqo_url=http://0.0.0.0:8882 --index_name=swadhaar_dev --folder_path=/home/ttpl-rt-228/Documents/Swadhaar_AI_Training_Data.xlsx --fresh_index (FOR FRESH INDEXING)
