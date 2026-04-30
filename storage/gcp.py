@@ -42,7 +42,7 @@ class GcpBucketClass(BaseStorageClass):
             object_name = f"bot_responses/{object_name}"
             blob = bucket.blob(object_name)
 
-            blob.acl.all().grant_read()
+            # blob.acl.all().grant_read()
             public_url = blob.public_url
 
             return public_url,  None
