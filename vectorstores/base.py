@@ -71,3 +71,22 @@ class BaseVectorStore(ABC):
         Returns:
             A list of tuples, where each tuple contains a document and its corresponding score.
         """
+
+    @abstractmethod
+    def hybrid_search_with_score(self, query: str, collection_name: str, k: int = 20,
+                                  rrf_k: int = 60) -> List[Tuple[Document, float]]:
+        """
+        Performs a hybrid search (dense + lexical) using RRF and returns documents with their scores.
+
+        This method should be overridden by subclasses to implement hybrid search combining
+        tensor (dense) and lexical (BM25) retrieval.
+
+        Args:
+            query: The query string to search for.
+            collection_name: The name of the collection within the vector store to search in.
+            k: The maximum number of documents to fetch (default: 20).
+            rrf_k: RRF constant controlling rank difference impact (default: 60).
+
+        Returns:
+            A list of tuples, where each tuple contains a document and its corresponding score.
+        """

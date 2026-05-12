@@ -12,6 +12,7 @@ from env_manager import storage_class as storage
 from io_processing import *
 from query_with_langchain import *
 from telemetry_middleware import TelemetryMiddleware
+from constants import _VIDEO_URLS
 
 
 app = FastAPI(
@@ -88,6 +89,12 @@ app.add_middleware(TelemetryMiddleware)
 @app.get("/", include_in_schema=False)
 async def root():
     return {"message": "Welcome to Sakhi API Service"}
+
+def is_valid_video(url: str) -> bool:
+    """Check if the url is a substring of any of the values in _VIDEO_URLS"""
+    if not url:
+        return False
+    return any(url in video_url for video_url in _VIDEO_URLS)
 
 
 @app.get(
@@ -244,7 +251,7 @@ async def chat(request: QueryModel, x_request_id: str = Header(None, alias="X-Re
         logger.error({"index_id": index_id, "query": query_text, "input_language": language, "output_format": output_format, "audio_url": audio_url, "status_code": status_code, "error_message": error_message})
         raise HTTPException(status_code=status_code, detail=error_message)
 
-    if video_url:
+    if video_url and is_valid_video(video_url):
         regional_answer = f"यह वीडियो सुझाव के तौर पर साझा किया गया है। \n{video_url} \n{regional_answer}"  # Add video URL at the beginning
     response = ResponseForQuery(output=OutputResponse(text=regional_answer, audio=audio_output_url, language=language, format=output_format, response_type=response_type, number_of_input_tokens=input_tokens, number_of_output_tokens=output_tokens, number_of_total_tokens=total_tokens))
     return response

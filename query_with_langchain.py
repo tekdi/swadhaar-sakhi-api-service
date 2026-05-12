@@ -20,6 +20,30 @@ chatClient  = llm_class.get_client(temperature=temperature)
 max_messages = int(get_from_env_or_config("llm", "max_messages")) # Maximum number of messages to include in conversation history
 llm_type = os.getenv("LLM_TYPE")
 
+_SWADHAAR_CONTEXTS = {"swadhaar_agent_dev"}
+
+
+def is_finance_keyword_match(query: str) -> bool:
+    """Pre-LLM gate: returns True when the query is semantically close to a known finance keyword.
+
+    Searches the dedicated keyword Marqo index built during indexing. Skips gracefully
+    if the index name is unconfigured or the index doesn't exist yet.
+    """
+    try:
+        keyword_index_name = get_from_env_or_config("keywords", "keyword_index_name", None)
+        threshold = float(get_from_env_or_config("keywords", "marqo_score_threshold", "0.75"))
+        if not keyword_index_name:
+            return False
+        results = vectorstore_class.similarity_search_with_score(query, keyword_index_name, k=3)
+        if results:
+            top_score = results[0][1]
+            logger.debug(f"Keyword gate top score: {top_score} (threshold: {threshold})")
+            print(f"Keyword gate top score: {top_score}")
+            return top_score >= threshold
+    except Exception as e:
+        logger.warning(f"Keyword gate check skipped: {e}")
+    return False
+
 def querying_with_langchain_gpt3(index_id, query, context):
     intent_response, response_type = check_bot_intent(query, context)
     if intent_response:
@@ -94,14 +118,27 @@ def conversation_retrieval_chain(index_id, query, session_id, context):
         intent_payload = create_payload_by_message_count(user_message, intent_system_prompt, messages=formatted_messages, max_messages=max_messages)
         search_intent = get_intent_query(intent_payload)
 
-        intent_response, response_type = check_bot_intent(search_intent, context)
+        # Pre-LLM keyword gate: if the query matches a known finance keyword, treat as finance_query
+        # and skip the LLM intent call entirely.
+        if context in _SWADHAAR_CONTEXTS and is_finance_keyword_match(query):
+            logger.info({"label": "intent_response", "intent_response": "finance_query (keyword gate)"})
+            print("intent_content: finance_query (keyword gate)")
+            intent_response, response_type = None, None
+        else:
+            intent_response, response_type = check_bot_intent(search_intent, context)
+
         if intent_response:
             print(f'>>> intent_response: {intent_response}')
             return intent_response, None, 200, 0, 0, 0, response_type
 
-        documents = vectorstore_class.similarity_search_with_score(search_intent, index_id, k=20)
+        if context in _SWADHAAR_CONTEXTS:
+            documents = vectorstore_class.hybrid_search_with_score(query, index_id, k=20)
+        else:
+            documents = vectorstore_class.similarity_search_with_score(search_intent, index_id, k=10)
         logger.debug(f"Marqo documents : {str(documents)}")
         min_score = get_from_env_or_config("database", "docs_min_score", None)
+        if context in _SWADHAAR_CONTEXTS:
+            min_score = get_from_env_or_config("database", "hybrid_docs_min_score", None)
         filtered_document = get_score_filtered_documents(documents, float(min_score))
         top_docs_to_fetch = get_from_env_or_config("database", "top_docs_to_fetch", None)
         filtered_document = filtered_document[:int(top_docs_to_fetch)]
@@ -197,6 +234,7 @@ def get_intent_query(messages=[]):
 
     try:
         content = response.content.strip()
+        print(f'\n\n Raw intent query response: {content}')
         if content.startswith("```"):
             content = "\n".join(content.split("\n")[1:-1])
         result = json.loads(content)
@@ -316,7 +354,7 @@ def check_bot_intent(query: str, context: str):
         return None, None
 
     intent_prompt = get_from_env_or_config("llm", "intent_prompt")
-    if context == "swadhaar_agent_dev":
+    if context in _SWADHAAR_CONTEXTS:
         intent_prompt = get_from_env_or_config("llm", "intent_prompt_dev")
 
     intent_response = call_chat_model(
