@@ -91,10 +91,10 @@ async def root():
     return {"message": "Welcome to Sakhi API Service"}
 
 def is_valid_video(url: str) -> bool:
-    """Check if the url is a substring of any of the values in _VIDEO_URLS"""
+    """Check if the url (ignoring query params) matches any entry in _VIDEO_URLS"""
     if not url:
         return False
-    return any(url in video_url for video_url in _VIDEO_URLS)
+    return any(url.split('?')[0] == video_url.split('?')[0] for video_url in _VIDEO_URLS)
 
 
 @app.get(

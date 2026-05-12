@@ -38,7 +38,6 @@ def is_finance_keyword_match(query: str) -> bool:
         if results:
             top_score = results[0][1]
             logger.debug(f"Keyword gate top score: {top_score} (threshold: {threshold})")
-            print(f"Keyword gate top score: {top_score}")
             return top_score >= threshold
     except Exception as e:
         logger.warning(f"Keyword gate check skipped: {e}")
@@ -122,7 +121,6 @@ def conversation_retrieval_chain(index_id, query, session_id, context):
         # and skip the LLM intent call entirely.
         if context in _SWADHAAR_CONTEXTS and is_finance_keyword_match(query):
             logger.info({"label": "intent_response", "intent_response": "finance_query (keyword gate)"})
-            print("intent_content: finance_query (keyword gate)")
             intent_response, response_type = None, None
         else:
             intent_response, response_type = check_bot_intent(search_intent, context)
@@ -234,7 +232,6 @@ def get_intent_query(messages=[]):
 
     try:
         content = response.content.strip()
-        print(f'\n\n Raw intent query response: {content}')
         if content.startswith("```"):
             content = "\n".join(content.split("\n")[1:-1])
         result = json.loads(content)
