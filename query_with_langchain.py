@@ -20,7 +20,7 @@ chatClient  = llm_class.get_client(temperature=temperature)
 max_messages = int(get_from_env_or_config("llm", "max_messages")) # Maximum number of messages to include in conversation history
 llm_type = os.getenv("LLM_TYPE")
 
-_SWADHAAR_CONTEXTS = {"swadhaar_agent_dev"}
+_SWADHAAR_CONTEXTS = {"swadhaar_agent_dev", "swadhaar_agent"}
 
 
 def is_finance_keyword_match(query: str) -> bool:
